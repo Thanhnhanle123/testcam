@@ -3,156 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Camera Realtime 2 Thiết Bị</title>
-    <!-- Nhúng thư viện PeerJS -->
+    <title>Web Camera Realtime P2P</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #121212;
-            color: #fff;
+            color: #ffffff;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
         }
         .container {
             width: 100%;
-            max-width: 640px;
+            max-width: 500px;
             text-align: center;
         }
-        .video-box {
-            width: 100%;
-            background: #000;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 15px 0;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        h2 {
+            margin-bottom: 15px;
+            color: #00e676;
         }
-        video { width: 100%; display: block; }
         .card {
             background: #1e1e1e;
             padding: 15px;
-            border-radius: 8px;
+            border-radius: 12px;
             margin-bottom: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .id-box {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffca28;
+            word-break: break-all;
+            margin-top: 5px;
+            padding: 8px;
+            background: #2a2a2a;
+            border-radius: 6px;
+        }
+        .video-container {
+            width: 100%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            position: relative;
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         input {
-            padding: 10px;
+            width: 100%;
+            padding: 12px;
             font-size: 16px;
-            border-radius: 5px;
+            border-radius: 8px;
             border: 1px solid #444;
-            background: #222;
+            background: #2a2a2a;
             color: #fff;
-            width: 60%;
+            margin-bottom: 10px;
+            outline: none;
+            text-align: center;
         }
         button {
-            padding: 10px 15px;
+            width: 100%;
+            padding: 12px;
             font-size: 16px;
             font-weight: bold;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
-            margin: 5px;
+            transition: background 0.2s;
+            margin-bottom: 8px;
         }
-        .btn-green { background: #28a745; color: #fff; }
-        .btn-blue { background: #007bff; color: #fff; }
-        .id-display {
-            font-size: 18px;
-            color: #ffc107;
-            font-weight: bold;
-            word-break: break-all;
+        .btn-start { background-color: #2e7d32; color: white; }
+        .btn-start:hover { background-color: #1b5e20; }
+        .btn-connect { background-color: #1565c0; color: white; }
+        .btn-connect:hover { background-color: #0d47a1; }
+        .status {
+            font-size: 14px;
+            color: #aaa;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Web Camera Realtime P2P</h2>
+    <h2>Camera Realtime P2P</h2>
 
-    <!-- Phần hiển thị trạng thái ID -->
     <div class="card">
-        <p>ID thiết bị của bạn:</p>
-        <p id="my-id" class="id-display">Đang tạo ID...</p>
+        <div>ID Thiết bị của bạn:</div>
+        <div id="my-id" class="id-box">Đang tạo ID...</div>
     </div>
 
-    <!-- Màn hình hiển thị Video -->
-    <div class="video-box">
-        <video id="remote-video" autoplay playsinline controls></video>
+    <div class="video-container">
+        <video id="video-player" autoplay playsinline muted></video>
     </div>
 
-    <!-- Các nút điều khiển -->
     <div class="card">
-        <h3>1. Nếu đây là máy PHÁT CAMERA:</h3>
-        <button id="start-cam-btn" class="btn-green">Bật Camera</button>
+        <button id="start-cam-btn" class="btn-start">1. Bật Camera (Máy Phát)</button>
+        <p id="cam-status" class="status">Chưa bật camera</p>
         
         <hr style="margin: 15px 0; border-color: #333;">
 
-        <h3>2. Nếu đây là máy XEM:</h3>
-        <input type="text" id="peer-id-input" placeholder="Nhập ID máy phát vào đây">
-        <button id="connect-btn" class="btn-blue">Kết nối & Xem</button>
+        <input type="text" id="remote-id-input" placeholder="Nhập ID máy phát vào đây">
+        <button id="connect-btn" class="btn-connect">2. Kết Nối & Xem (Máy Xem)</button>
     </div>
 </div>
 
 <script>
-    // Khởi tạo PeerJS kết nối tới Server miễn phí của PeerJS
-    const peer = new Peer();
-    
+    // Cấu hình PeerJS kết hợp STUN Server của Google để vượt qua tường lửa/NAT
+    const peer = new Peer({
+        config: {
+            'iceServers': [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        }
+    });
+
     let localStream = null;
     const myIdEl = document.getElementById('my-id');
-    const remoteVideo = document.getElementById('remote-video');
+    const videoPlayer = document.getElementById('video-player');
+    const camStatus = document.getElementById('cam-status');
 
-    // Lấy ID khi kết nối thành công tới Server signaling
+    // Lấy ID thiết bị sau khi kết nối tới Server Signaling
     peer.on('open', (id) => {
         myIdEl.innerText = id;
     });
 
-    // BẬT CAMERA (Dành cho máy Phát)
+    peer.on('error', (err) => {
+        console.error("Lỗi PeerJS:", err);
+        alert("Lỗi kết nối: " + err.type);
+    });
+
+    // 1. CHỨC NĂNG BẬT CAMERA (Dành cho Máy PHÁT)
     document.getElementById('start-cam-btn').addEventListener('click', async () => {
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment" }, // Ưu tiên camera sau trên điện thoại
-                audio: true 
+            // Lấy luồng camera (ưu tiên camera sau của điện thoại)
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "environment" },
+                audio: false
             });
-            remoteVideo.srcObject = localStream;
-            alert("Đã bật Camera thành công! Hãy gửi ID của bạn cho máy XEM.");
+
+            videoPlayer.srcObject = localStream;
+            videoPlayer.play();
+            
+            camStatus.innerText = "Camera đang hoạt động! Hãy gửi ID cho máy khác.";
+            camStatus.style.color = "#00e676";
         } catch (err) {
-            alert("Lỗi mở Camera: " + err.message);
+            console.error("Lỗi Camera:", err);
+            alert("Không thể bật Camera: " + err.message);
         }
     });
 
-    // KẾT NỐI ĐẾN MÁY PHÁT (Dành cho máy Xem)
+    // 2. CHỨC NĂNG KẾT NỐI XEM (Dành cho Máy XEM)
     document.getElementById('connect-btn').addEventListener('click', () => {
-        const remotePeerId = document.getElementById('peer-id-input').value.trim();
+        const remotePeerId = document.getElementById('remote-id-input').value.trim();
+        
         if (!remotePeerId) {
-            alert("Vui lòng nhập ID của máy phát!");
+            alert("Vui lòng nhập ID của thiết bị phát!");
             return;
         }
 
-        // Gọi dữ liệu từ máy phát
+        // Gọi kết nối tới máy phát
         const call = peer.call(remotePeerId, null);
-        
+
         call.on('stream', (remoteStream) => {
-            // Nhận luồng video từ máy phát và hiển thị
-            remoteVideo.srcObject = remoteStream;
+            // Nhận luồng video từ máy phát và phát lên màn hình
+            videoPlayer.srcObject = remoteStream;
+            videoPlayer.play().catch(e => console.log("Lỗi autoplay:", e));
         });
 
         call.on('error', (err) => {
-            alert("Lỗi kết nối: " + err);
+            alert("Lỗi cuộc gọi: " + err);
         });
     });
 
-    // LÍNH CẢNH BÁO MÁY PHÁT: Tự động trả lời khi có máy khác gọi đến
+    // 3. LẮNG NGHE YÊU CẦU KẾT NỐI ĐẾN (Máy PHÁT tự động trả lời khi Máy XEM gọi)
     peer.on('call', (call) => {
         if (localStream) {
-            call.answer(localStream); // Gửi luồng camera đi
-            call.on('stream', (remoteStream) => {
-                remoteVideo.srcObject = remoteStream;
-            });
+            // Trả lời cuộc gọi và truyền luồng video localStream đi
+            call.answer(localStream);
         } else {
-            alert("Có thiết bị muốn kết nối nhưng bạn chưa Bật Camera!");
+            alert("Có thiết bị khác đang muốn kết nối nhưng bạn CHƯA BẤM BẬT CAMERA!");
         }
     });
 </script>
