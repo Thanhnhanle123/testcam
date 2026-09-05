@@ -3,17 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Camera Local Realtime</title>
+    <title>Web Camera Realtime 2 Thiết Bị</title>
+    <!-- Nhúng thư viện PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: Arial, sans-serif;
-            background-color: #1e1e24;
+            background-color: #121212;
             color: #fff;
             display: flex;
             flex-direction: column;
@@ -22,114 +19,143 @@
             min-height: 100vh;
             padding: 20px;
         }
-
-        h2 {
-            margin-bottom: 20px;
-        }
-
-        .camera-container {
-            position: relative;
+        .container {
             width: 100%;
-            max-width: 720px;
-            background-color: #000;
-            border-radius: 12px;
+            max-width: 640px;
+            text-align: center;
+        }
+        .video-box {
+            width: 100%;
+            background: #000;
+            border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            margin: 15px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
-
-        video {
-            width: 100%;
-            height: auto;
-            display: block;
-            /* Lật ngược video giống như gương khi xem camera trước */
-            transform: scaleX(-1); 
+        video { width: 100%; display: block; }
+        .card {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
         }
-
-        .controls {
-            margin-top: 20px;
-            display: flex;
-            gap: 12px;
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background: #222;
+            color: #fff;
+            width: 60%;
         }
-
         button {
-            padding: 10px 20px;
-            font-size: 15px;
+            padding: 10px 15px;
+            font-size: 16px;
             font-weight: bold;
             border: none;
-            border-radius: 6px;
+            border-radius: 5px;
             cursor: pointer;
-            transition: background 0.2s ease;
+            margin: 5px;
         }
-
-        .btn-start { background-color: #28a745; color: #fff; }
-        .btn-start:hover { background-color: #218838; }
-
-        .btn-stop { background-color: #dc3545; color: #fff; }
-        .btn-stop:hover { background-color: #c82333; }
-
-        button:disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
+        .btn-green { background: #28a745; color: #fff; }
+        .btn-blue { background: #007bff; color: #fff; }
+        .id-display {
+            font-size: 18px;
+            color: #ffc107;
+            font-weight: bold;
+            word-break: break-all;
         }
     </style>
 </head>
 <body>
 
-    <h2>Web Camera Local Realtime</h2>
+<div class="container">
+    <h2>Web Camera Realtime P2P</h2>
 
-    <div class="camera-container">
-        <video id="webcam" autoplay playsinline></video>
+    <!-- Phần hiển thị trạng thái ID -->
+    <div class="card">
+        <p>ID thiết bị của bạn:</p>
+        <p id="my-id" class="id-display">Đang tạo ID...</p>
     </div>
 
-    <div class="controls">
-        <button id="startBtn" class="btn-start">Bật Camera</button>
-        <button id="stopBtn" class="btn-stop" disabled>Tắt Camera</button>
+    <!-- Màn hình hiển thị Video -->
+    <div class="video-box">
+        <video id="remote-video" autoplay playsinline controls></video>
     </div>
 
-    <script>
-        const video = document.getElementById('webcam');
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        let streamInstance = null;
+    <!-- Các nút điều khiển -->
+    <div class="card">
+        <h3>1. Nếu đây là máy PHÁT CAMERA:</h3>
+        <button id="start-cam-btn" class="btn-green">Bật Camera</button>
+        
+        <hr style="margin: 15px 0; border-color: #333;">
 
-        // Cấu hình luồng Camera
-        const constraints = {
-            audio: false, // Đổi thành true nếu muốn thu cả tiếng
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                facingMode: "user" // "user" cho camera trước, "environment" cho camera sau
-            }
-        };
+        <h3>2. Nếu đây là máy XEM:</h3>
+        <input type="text" id="peer-id-input" placeholder="Nhập ID máy phát vào đây">
+        <button id="connect-btn" class="btn-blue">Kết nối & Xem</button>
+    </div>
+</div>
 
-        // Hàm bật Camera
-        async function startCamera() {
-            try {
-                streamInstance = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = streamInstance;
-                
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-            } catch (err) {
-                console.error("Lỗi truy cập Camera:", err);
-                alert("Không thể truy cập Camera. Vui lòng kiểm tra quyền trình duyệt!");
-            }
+<script>
+    // Khởi tạo PeerJS kết nối tới Server miễn phí của PeerJS
+    const peer = new Peer();
+    
+    let localStream = null;
+    const myIdEl = document.getElementById('my-id');
+    const remoteVideo = document.getElementById('remote-video');
+
+    // Lấy ID khi kết nối thành công tới Server signaling
+    peer.on('open', (id) => {
+        myIdEl.innerText = id;
+    });
+
+    // BẬT CAMERA (Dành cho máy Phát)
+    document.getElementById('start-cam-btn').addEventListener('click', async () => {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: "environment" }, // Ưu tiên camera sau trên điện thoại
+                audio: true 
+            });
+            remoteVideo.srcObject = localStream;
+            alert("Đã bật Camera thành công! Hãy gửi ID của bạn cho máy XEM.");
+        } catch (err) {
+            alert("Lỗi mở Camera: " + err.message);
+        }
+    });
+
+    // KẾT NỐI ĐẾN MÁY PHÁT (Dành cho máy Xem)
+    document.getElementById('connect-btn').addEventListener('click', () => {
+        const remotePeerId = document.getElementById('peer-id-input').value.trim();
+        if (!remotePeerId) {
+            alert("Vui lòng nhập ID của máy phát!");
+            return;
         }
 
-        // Hàm tắt Camera
-        function stopCamera() {
-            if (streamInstance) {
-                const tracks = streamInstance.getTracks();
-                tracks.forEach(track => track.stop());
-                video.srcObject = null;
-                
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-            }
-        }
+        // Gọi dữ liệu từ máy phát
+        const call = peer.call(remotePeerId, null);
+        
+        call.on('stream', (remoteStream) => {
+            // Nhận luồng video từ máy phát và hiển thị
+            remoteVideo.srcObject = remoteStream;
+        });
 
-        startBtn.addEventListener('click', startCamera);
-        stopBtn.addEventListener('click', stopCamera);
-    </script>
+        call.on('error', (err) => {
+            alert("Lỗi kết nối: " + err);
+        });
+    });
+
+    // LÍNH CẢNH BÁO MÁY PHÁT: Tự động trả lời khi có máy khác gọi đến
+    peer.on('call', (call) => {
+        if (localStream) {
+            call.answer(localStream); // Gửi luồng camera đi
+            call.on('stream', (remoteStream) => {
+                remoteVideo.srcObject = remoteStream;
+            });
+        } else {
+            alert("Có thiết bị muốn kết nối nhưng bạn chưa Bật Camera!");
+        }
+    });
+</script>
+
 </body>
 </html>
