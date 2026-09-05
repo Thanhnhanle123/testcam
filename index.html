@@ -3,100 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Camera Realtime P2P</title>
+    <title>Web Camera Realtime P2P Fix</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: Arial, sans-serif;
             background-color: #121212;
-            color: #ffffff;
+            color: #fff;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 15px;
+            padding: 20px;
         }
-        .container {
-            width: 100%;
-            max-width: 500px;
-            text-align: center;
-        }
-        h2 {
-            margin-bottom: 15px;
-            color: #00e676;
-        }
-        .card {
-            background: #1e1e1e;
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-        .id-box {
-            font-size: 18px;
-            font-weight: bold;
-            color: #ffca28;
-            word-break: break-all;
-            margin-top: 5px;
-            padding: 8px;
-            background: #2a2a2a;
-            border-radius: 6px;
-        }
-        .video-container {
-            width: 100%;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 15px;
-            position: relative;
-            aspect-ratio: 16/9;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            border-radius: 8px;
-            border: 1px solid #444;
-            background: #2a2a2a;
-            color: #fff;
-            margin-bottom: 10px;
-            outline: none;
-            text-align: center;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.2s;
-            margin-bottom: 8px;
-        }
-        .btn-start { background-color: #2e7d32; color: white; }
-        .btn-start:hover { background-color: #1b5e20; }
-        .btn-connect { background-color: #1565c0; color: white; }
-        .btn-connect:hover { background-color: #0d47a1; }
-        .status {
-            font-size: 14px;
-            color: #aaa;
-            margin-top: 5px;
-        }
+        .container { width: 100%; max-width: 500px; text-align: center; }
+        .card { background: #1e1e1e; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        .id-box { font-size: 18px; color: #ffca28; background: #2a2a2a; padding: 8px; border-radius: 5px; word-break: break-all; margin-top: 5px; }
+        .video-box { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 15px; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        input { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; margin-bottom: 10px; text-align: center; }
+        button { width: 100%; padding: 12px; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 8px; }
+        .btn-green { background: #2e7d32; color: #fff; }
+        .btn-blue { background: #1565c0; color: #fff; }
+        .btn-orange { background: #e65100; color: #fff; display: none; }
+        .status { font-size: 13px; color: #888; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -106,32 +36,36 @@
 
     <div class="card">
         <div>ID Thiết bị của bạn:</div>
-        <div id="my-id" class="id-box">Đang tạo ID...</div>
+        <div id="my-id" class="id-box">Đang kết nối Server...</div>
     </div>
 
-    <div class="video-container">
+    <div class="video-box">
         <video id="video-player" autoplay playsinline muted></video>
     </div>
 
+    <button id="play-manual-btn" class="btn-orange">▶ Bấm vào đây để phát Video</button>
+
     <div class="card">
-        <button id="start-cam-btn" class="btn-start">1. Bật Camera (Máy Phát)</button>
-        <p id="cam-status" class="status">Chưa bật camera</p>
+        <button id="start-cam-btn" class="btn-green">1. Bật Camera (Máy Phát)</button>
+        <p id="cam-status" class="status">Trạng thái: Chưa bật camera</p>
         
         <hr style="margin: 15px 0; border-color: #333;">
 
-        <input type="text" id="remote-id-input" placeholder="Nhập ID máy phát vào đây">
-        <button id="connect-btn" class="btn-connect">2. Kết Nối & Xem (Máy Xem)</button>
+        <input type="text" id="remote-id-input" placeholder="Nhập ID máy phát">
+        <button id="connect-btn" class="btn-blue">2. Kết Nối & Xem (Máy Xem)</button>
     </div>
 </div>
 
 <script>
-    // Cấu hình PeerJS kết hợp STUN Server của Google để vượt qua tường lửa/NAT
+    // Cấu hình danh sách STUN + TURN server hỗ trợ đâm thủng Wi-Fi/Tường lửa
     const peer = new Peer({
         config: {
             'iceServers': [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
+                { urls: 'stun:openrelay.metered.ca:80' },
+                { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
             ]
         }
     });
@@ -140,67 +74,68 @@
     const myIdEl = document.getElementById('my-id');
     const videoPlayer = document.getElementById('video-player');
     const camStatus = document.getElementById('cam-status');
+    const playBtn = document.getElementById('play-manual-btn');
 
-    // Lấy ID thiết bị sau khi kết nối tới Server Signaling
     peer.on('open', (id) => {
         myIdEl.innerText = id;
     });
 
     peer.on('error', (err) => {
-        console.error("Lỗi PeerJS:", err);
-        alert("Lỗi kết nối: " + err.type);
+        alert("Lỗi kết nối WebRTC: " + err.type);
     });
 
-    // 1. CHỨC NĂNG BẬT CAMERA (Dành cho Máy PHÁT)
+    // Hàm hỗ trợ tự động phát video có kiểm tra chặn trình duyệt
+    function playStream(stream) {
+        videoPlayer.srcObject = stream;
+        videoPlayer.play().then(() => {
+            playBtn.style.display = 'none';
+        }).catch(() => {
+            // Nếu trình duyệt chặn tự động phát, hiện nút bắt buộc tương tác
+            playBtn.style.display = 'block';
+        });
+    }
+
+    playBtn.addEventListener('click', () => {
+        videoPlayer.play();
+        playBtn.style.display = 'none';
+    });
+
+    // 1. Máy PHÁT: Bật Camera
     document.getElementById('start-cam-btn').addEventListener('click', async () => {
         try {
-            // Lấy luồng camera (ưu tiên camera sau của điện thoại)
             localStream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: "environment" },
                 audio: false
             });
-
-            videoPlayer.srcObject = localStream;
-            videoPlayer.play();
-            
-            camStatus.innerText = "Camera đang hoạt động! Hãy gửi ID cho máy khác.";
+            playStream(localStream);
+            camStatus.innerText = "Camera đã Bật! Đang sẵn sàng phát.";
             camStatus.style.color = "#00e676";
         } catch (err) {
-            console.error("Lỗi Camera:", err);
-            alert("Không thể bật Camera: " + err.message);
+            alert("Lỗi bật camera: " + err.message);
         }
     });
 
-    // 2. CHỨC NĂNG KẾT NỐI XEM (Dành cho Máy XEM)
+    // 2. Máy XEM: Yêu cầu kết nối
     document.getElementById('connect-btn').addEventListener('click', () => {
         const remotePeerId = document.getElementById('remote-id-input').value.trim();
-        
-        if (!remotePeerId) {
-            alert("Vui lòng nhập ID của thiết bị phát!");
-            return;
-        }
+        if (!remotePeerId) return alert("Chưa nhập ID!");
 
-        // Gọi kết nối tới máy phát
+        camStatus.innerText = "Đang thử kết nối tới Máy Phát...";
         const call = peer.call(remotePeerId, null);
 
         call.on('stream', (remoteStream) => {
-            // Nhận luồng video từ máy phát và phát lên màn hình
-            videoPlayer.srcObject = remoteStream;
-            videoPlayer.play().catch(e => console.log("Lỗi autoplay:", e));
-        });
-
-        call.on('error', (err) => {
-            alert("Lỗi cuộc gọi: " + err);
+            camStatus.innerText = "Đã nhận được hình ảnh!";
+            camStatus.style.color = "#00e676";
+            playStream(remoteStream);
         });
     });
 
-    // 3. LẮNG NGHE YÊU CẦU KẾT NỐI ĐẾN (Máy PHÁT tự động trả lời khi Máy XEM gọi)
+    // 3. Máy PHÁT: Nhận yêu cầu và gửi luồng Video đi
     peer.on('call', (call) => {
         if (localStream) {
-            // Trả lời cuộc gọi và truyền luồng video localStream đi
             call.answer(localStream);
         } else {
-            alert("Có thiết bị khác đang muốn kết nối nhưng bạn CHƯA BẤM BẬT CAMERA!");
+            alert("Máy xem đang gọi nhưng bạn chưa nhấn nút '1. Bật Camera'!");
         }
     });
 </script>
