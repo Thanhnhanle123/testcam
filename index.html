@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Camera Local Realtime</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e24;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 720px;
+            background-color: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+            /* Lật ngược video giống như gương khi xem camera trước */
+            transform: scaleX(-1); 
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 15px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .btn-start { background-color: #28a745; color: #fff; }
+        .btn-start:hover { background-color: #218838; }
+
+        .btn-stop { background-color: #dc3545; color: #fff; }
+        .btn-stop:hover { background-color: #c82333; }
+
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Web Camera Local Realtime</h2>
+
+    <div class="camera-container">
+        <video id="webcam" autoplay playsinline></video>
+    </div>
+
+    <div class="controls">
+        <button id="startBtn" class="btn-start">Bật Camera</button>
+        <button id="stopBtn" class="btn-stop" disabled>Tắt Camera</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        let streamInstance = null;
+
+        // Cấu hình luồng Camera
+        const constraints = {
+            audio: false, // Đổi thành true nếu muốn thu cả tiếng
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: "user" // "user" cho camera trước, "environment" cho camera sau
+            }
+        };
+
+        // Hàm bật Camera
+        async function startCamera() {
+            try {
+                streamInstance = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = streamInstance;
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } catch (err) {
+                console.error("Lỗi truy cập Camera:", err);
+                alert("Không thể truy cập Camera. Vui lòng kiểm tra quyền trình duyệt!");
+            }
+        }
+
+        // Hàm tắt Camera
+        function stopCamera() {
+            if (streamInstance) {
+                const tracks = streamInstance.getTracks();
+                tracks.forEach(track => track.stop());
+                video.srcObject = null;
+                
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        startBtn.addEventListener('click', startCamera);
+        stopBtn.addEventListener('click', stopCamera);
+    </script>
+</body>
+</html>
